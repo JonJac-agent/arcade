@@ -236,6 +236,25 @@
     font-weight: 600;
   }
 
+  .best {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.3px;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   @media (max-width: 560px) {
     .topbar {
       flex-wrap: wrap;
@@ -244,6 +263,14 @@
     .hint {
       order: 3;
       width: 100%;
+    }
+    .scoreboard {
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .score {
+      padding: 8px 12px;
+      gap: 8px;
     }
     .score .value {
       font-size: 24px;
@@ -274,8 +301,13 @@
       </div>
     </div>
 
+    <div class="best" id="bestScore">Best win margin: 0</div>
+
     <div class="stage">
-      <canvas id="game" width="800" height="500"></canvas>
+      <canvas id="game" width="800" height="500" aria-label="Ping Pong game. Move your paddle with the mouse or the left and right arrow keys to return the ball and score against the computer.">
+        Ping Pong game: move your paddle to hit the ball past the computer. This game requires a browser that supports canvas.
+      </canvas>
+      <div class="sr-only" id="announce" aria-live="polite"></div>
       <div class="overlay hidden" id="overlay">
         <div class="result" id="overlayResult">Player wins!</div>
         <div class="final" id="overlayFinal">11 – 5</div>
@@ -303,11 +335,20 @@
   const overlayFinal = document.getElementById("overlayFinal");
   const overlayRestart = document.getElementById("overlayRestart");
   const restartBtn = document.getElementById("restartBtn");
+  const bestScoreEl = document.getElementById("bestScore");
+  const announceEl = document.getElementById("announce");
 
   // ---------- Constants ----------
-  const W = canvas.width;            // 800
-  const H = canvas.height;           // 500
+  // Logical game coordinates (800×500). The backing store is multiplied by the
+  // device pixel ratio below for crisp rendering on high-DPI displays.
+  const W = 800;
+  const H = 500;
   const WIN_SCORE = 11;
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.scale(dpr, dpr);
 
   const PADDLE_W = 110;
   const PADDLE_H = 14;
@@ -337,8 +378,33 @@
   let serveDir = 1;                  // 1 = toward player (down), -1 = toward computer (up)
   let aiErrorUnit = 0;               // current aim imperfection in [-1, 1]
   let aiRerollTimer = 0;
+  let paused = false;
 
   const keys = { left: false, right: false };
+
+  // ---------- Best score persistence ----------
+  const STORAGE_KEY = "arcade.pingpong.bestMargin";
+
+  // localStorage can throw (privacy modes, some file:// contexts) — never let it break the game.
+  const store = {
+    get: function (key, fallback) {
+      try {
+        const value = window.localStorage.getItem(key);
+        return value === null ? fallback : value;
+      } catch (err) {
+        return fallback;
+      }
+    },
+    set: function (key, value) {
+      try {
+        window.localStorage.setItem(key, value);
+      } catch (err) {
+        /* ignore */
+      }
+    }
+  };
+
+  let bestMargin = parseInt(store.get(STORAGE_KEY, "0"), 10) || 0;
 
   // ---------- Helpers ----------
   function clamp(v, min, max) {
@@ -382,6 +448,7 @@
     computerX = (W - PADDLE_W) / 2;
     updateScoreDOM();
     overlay.classList.add("hidden");
+    announceEl.textContent = "";
     serveDir = randomSign();
     resetBall();
   }
@@ -391,6 +458,10 @@
     computerScoreEl.textContent = computerScore;
   }
 
+  function updateBestDOM() {
+    bestScoreEl.textContent = "Best win margin: " + bestMargin;
+  }
+
   function endGame(playerWon) {
     state = "over";
     overlayResult.textContent = playerWon ? "Player wins!" : "Computer wins!";
@@ -398,6 +469,16 @@
     overlayResult.classList.toggle("lose", !playerWon);
     overlayFinal.textContent = playerScore + " – " + computerScore;
     overlay.classList.remove("hidden");
+
+    if (playerWon) {
+      const margin = playerScore - computerScore;
+      if (margin > bestMargin) {
+        bestMargin = margin;
+        store.set(STORAGE_KEY, String(bestMargin));
+        updateBestDOM();
+      }
+    }
+    announceEl.textContent = (playerWon ? "Player wins " : "Computer wins ") + playerScore + " to " + computerScore + ".";
   }
 
   // ---------- Scoring ----------
@@ -455,6 +536,10 @@
   }
 
   function update(dt) {
+    if (paused) {
+      return;
+    }
+
     // Computer AI: track the ball with imperfect aim, re-rolled periodically.
     aiRerollTimer -= dt;
     if (aiRerollTimer <= 0) {
@@ -592,6 +677,19 @@
       ctx.textAlign = "center";
       ctx.fillText("Get ready…", W / 2, H / 2 - 70);
     }
+
+    // Paused overlay (drawn on the canvas, matching Snake).
+    if (paused && state !== "over") {
+      ctx.fillStyle = "rgba(11, 14, 20, 0.72)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#e6edf3";
+      ctx.font = "600 20px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Paused", W / 2, H / 2);
+      ctx.textAlign = "start";
+      ctx.textBaseline = "alphabetic";
+    }
   }
 
   function drawPaddle(x, y, color) {
@@ -637,7 +735,7 @@
   }
 
   function onMouseMove(e) {
-    if (state === "playing" || state === "serve") {
+    if (!paused && (state === "playing" || state === "serve")) {
       playerX = clamp(canvasXFromEvent(e) - PADDLE_W / 2, 0, W - PADDLE_W);
     }
   }
@@ -645,26 +743,31 @@
   function onTouchMove(e) {
     e.preventDefault();
     const t = e.touches[0];
-    if (t && (state === "playing" || state === "serve")) {
+    if (t && !paused && (state === "playing" || state === "serve")) {
       playerX = clamp(canvasXFromEvent(t) - PADDLE_W / 2, 0, W - PADDLE_W);
     }
   }
 
   function onKeyDown(e) {
-    if (e.key === "ArrowLeft" || e.key === "Left") {
+    if (e.key === "ArrowLeft") {
       keys.left = true;
       e.preventDefault();
-    } else if (e.key === "ArrowRight" || e.key === "Right") {
+    } else if (e.key === "ArrowRight") {
       keys.right = true;
       e.preventDefault();
+    } else if (e.code === "Space" || e.code === "Escape") {
+      if (state !== "over") {
+        e.preventDefault();
+        paused = !paused;
+      }
     }
   }
 
   function onKeyUp(e) {
-    if (e.key === "ArrowLeft" || e.key === "Left") {
+    if (e.key === "ArrowLeft") {
       keys.left = false;
       e.preventDefault();
-    } else if (e.key === "ArrowRight" || e.key === "Right") {
+    } else if (e.key === "ArrowRight") {
       keys.right = false;
       e.preventDefault();
     }
@@ -679,6 +782,7 @@
   restartBtn.addEventListener("click", resetGame);
 
   // ---------- Start ----------
+  updateBestDOM();
   serveDir = randomSign();
   resetBall();
   requestAnimationFrame(frame);
