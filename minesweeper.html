@@ -92,6 +92,35 @@
     flex-wrap: wrap;
   }
 
+  .controls-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .flagmode {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: box-shadow .15s ease, border-color .15s ease, background .15s ease, color .15s ease;
+  }
+  .flagmode:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+  .flagmode.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #1a1205;
+    font-weight: 700;
+  }
+
   .difficulty {
     display: flex;
     gap: 8px;
@@ -252,20 +281,24 @@
   <header class="topbar">
     <a class="back" href="index.html">← Arcade</a>
     <h1 class="title">Minesweeper</h1>
-    <div class="hint">Left-click to reveal · Right-click to flag</div>
+    <div class="hint">Tap/click to reveal · Long-press or right-click to flag · Space toggles flag</div>
   </header>
 
   <main class="panel">
     <div class="controls">
-      <div class="difficulty" role="group" aria-label="Difficulty">
-        <button type="button" data-diff="easy" class="active">Easy</button>
-        <button type="button" data-diff="medium">Medium</button>
-        <button type="button" data-diff="hard">Hard</button>
+      <div class="controls-left">
+        <div class="difficulty" role="group" aria-label="Difficulty">
+          <button type="button" data-diff="easy" class="active">Easy</button>
+          <button type="button" data-diff="medium">Medium</button>
+          <button type="button" data-diff="hard">Hard</button>
+        </div>
+        <button type="button" id="flagMode" class="flagmode" aria-pressed="false">🚩 Flag mode</button>
       </div>
       <div class="hud">
         <div class="counter" title="Mines remaining">💣 <span id="mineCounter">000</span></div>
         <button type="button" id="smiley" class="smiley" aria-label="Restart">🙂</button>
         <div class="counter" title="Time">⏱ <span id="timer">000</span></div>
+        <div class="counter" title="Best time">🏆 <span id="bestTime">--</span></div>
       </div>
     </div>
 
@@ -291,6 +324,8 @@
   var timerEl = document.getElementById('timer');
   var smileyEl = document.getElementById('smiley');
   var statusEl = document.getElementById('status');
+  var flagModeEl = document.getElementById('flagMode');
+  var bestTimeEl = document.getElementById('bestTime');
 
   var rows = 0, cols = 0, mines = 0, cellSize = 0;
   var board = [];   // board[r][c] = { mine, revealed, flagged, adjacent, showMine, wrong, boom }
@@ -302,6 +337,11 @@
   var seconds = 0;
   var timerInterval = null;
   var current = 'easy';
+  var flagMode = false;
+  var longPressTimer = null;
+  var longPressArmed = false;
+  var suppressClickUntil = 0;
+  var BEST_KEY = 'arcade.minesweeper.bestTime';
 
   function forEachNeighbor(r, c, fn) {
     for (var dr = -1; dr <= 1; dr++) {
@@ -311,6 +351,68 @@
         if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) fn(nr, nc);
       }
     }
+  }
+
+  function describeCell(r, c) {
+    var cell = board[r][c];
+    var label = 'Row ' + (r + 1) + ', column ' + (c + 1) + ', ';
+    if (cell.boom) return label + 'mine, exploded';
+    if (cell.wrong) return label + 'wrongly flagged, no mine';
+    if (cell.showMine) return label + 'mine';
+    if (cell.revealed) {
+      if (cell.mine) return label + 'mine';
+      if (cell.adjacent > 0) return label + 'revealed, ' + cell.adjacent + ' adjacent mine' + (cell.adjacent === 1 ? '' : 's');
+      return label + 'revealed, empty';
+    }
+    if (cell.flagged) return label + 'flagged';
+    return label + 'unrevealed';
+  }
+
+  // localStorage can throw (privacy modes, some file:// contexts) — never let it break the game.
+  function readBest() {
+    try {
+      var raw = window.localStorage.getItem(BEST_KEY);
+      if (!raw) return {};
+      var parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function writeBest(data) {
+    try {
+      window.localStorage.setItem(BEST_KEY, JSON.stringify(data));
+    } catch (err) {
+      /* ignore */
+    }
+  }
+
+  function getBest(diff) {
+    var b = readBest()[diff];
+    return (typeof b === 'number' && isFinite(b) && b >= 0) ? b : null;
+  }
+
+  function updateBest() {
+    var b = getBest(current);
+    bestTimeEl.textContent = b === null ? '--' : String(b).padStart(3, '0');
+  }
+
+  function recordBest() {
+    var best = getBest(current);
+    if (best !== null && seconds >= best) return;
+    var data = readBest();
+    data[current] = seconds;
+    writeBest(data);
+    updateBest();
+  }
+
+  function clearLongPress() {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+    longPressArmed = false;
   }
 
   function buildBoard() {
@@ -328,13 +430,45 @@
         var el = document.createElement('button');
         el.type = 'button';
         el.className = 'cell';
-        el.setAttribute('aria-label', 'cell');
+        el.setAttribute('aria-label', describeCell(r, c));
+        el.setAttribute('aria-pressed', 'false');
         (function (rr, cc) {
-          el.addEventListener('click', function () { reveal(rr, cc); });
+          el.addEventListener('click', function () {
+            if (Date.now() < suppressClickUntil) return;
+            if (flagMode) {
+              toggleFlag(rr, cc);
+            } else {
+              reveal(rr, cc);
+            }
+          });
           el.addEventListener('contextmenu', function (e) {
             e.preventDefault();
+            if (longPressArmed) return;
             toggleFlag(rr, cc);
           });
+          el.addEventListener('keydown', function (e) {
+            if (e.key === ' ' || e.key === 'Spacebar' || e.code === 'Space') {
+              e.preventDefault();
+              toggleFlag(rr, cc);
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (flagMode) toggleFlag(rr, cc);
+              else reveal(rr, cc);
+            }
+          });
+          el.addEventListener('pointerdown', function (e) {
+            if (e.pointerType !== 'touch') return;
+            clearLongPress();
+            longPressArmed = true;
+            longPressTimer = setTimeout(function () {
+              longPressTimer = null;
+              suppressClickUntil = Date.now() + 400;
+              toggleFlag(rr, cc);
+            }, 500);
+          });
+          el.addEventListener('pointerup', clearLongPress);
+          el.addEventListener('pointercancel', clearLongPress);
+          el.addEventListener('pointerleave', clearLongPress);
         })(r, c);
         boardEl.appendChild(el);
         cells[r].push(el);
@@ -379,6 +513,8 @@
     el.className = 'cell';
     el.textContent = '';
     el.removeAttribute('data-n');
+    el.setAttribute('aria-label', describeCell(r, c));
+    el.setAttribute('aria-pressed', cell.flagged ? 'true' : 'false');
 
     if (cell.boom) {
       el.classList.add('revealed', 'mine', 'boom');
@@ -529,6 +665,7 @@
     renderAll();
     setSmiley('\u{1F60E}');
     setStatus('\u{1F389} You win! All mines cleared.', 'win');
+    recordBest();
   }
 
   function startTimer() {
@@ -592,19 +729,35 @@
     stopTimer();
     updateTimer();
     updateMineCounter();
+    updateBest();
     setSmiley('\u{1F642}');
     setStatus('', '');
     buildBoard();
   }
 
+  function isGameInProgress() {
+    return state === 'playing' || (state === 'ready' && flags > 0);
+  }
+
   var diffButtons = document.querySelectorAll('.difficulty button');
   for (var b = 0; b < diffButtons.length; b++) {
     diffButtons[b].addEventListener('click', function () {
-      current = this.getAttribute('data-diff');
+      var next = this.getAttribute('data-diff');
+      if (next === current) return;
+      if (isGameInProgress() && !window.confirm('Switching difficulty starts a new game and loses your current progress. Switch anyway?')) {
+        return;
+      }
+      current = next;
       setActiveDifficulty();
       resetGame();
     });
   }
+
+  flagModeEl.addEventListener('click', function () {
+    flagMode = !flagMode;
+    flagModeEl.classList.toggle('active', flagMode);
+    flagModeEl.setAttribute('aria-pressed', flagMode ? 'true' : 'false');
+  });
 
   smileyEl.addEventListener('click', resetGame);
   boardEl.addEventListener('contextmenu', function (e) { e.preventDefault(); });
