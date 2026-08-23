@@ -1,6 +1,6 @@
 # 🎮 Arcade
 
-A small browser arcade: three classic single-file games with a hub to switch between and download them.
+A small browser arcade: four classic single-file games with a hub to switch between and download them.
 
 ## Games
 
@@ -9,13 +9,14 @@ A small browser arcade: three classic single-file games with a hub to switch bet
 | [Ping Pong](pingpong.html) | Rally against the computer and keep the ball in play. | **Mouse** or **←/→** to move the paddle |
 | [Snake](snake.html) | Eat, grow, and dodge the walls as long as you can. | **Arrow keys** or **WASD** to steer |
 | [Minesweeper](minesweeper.html) | Clear the board without hitting a single mine. | **Click** to reveal, **right-click** to flag |
+| [Chess](chess.html) | Play a full game of chess against a built-in computer opponent. | **Click** a piece, then **click** a square to move |
 
 ## Run
 
 No server, build step, or install needed — every game is a single self-contained HTML file.
 
 - Open `index.html` for the hub and pick a game.
-- Or open any game file directly (e.g. `pingpong.html`, `snake.html`, `minesweeper.html`).
+- Or open any game file directly (e.g. `pingpong.html`, `snake.html`, `minesweeper.html`, `chess.html`).
 - Works offline from `file://` and in any modern browser.
 
 ## Download
@@ -29,6 +30,8 @@ git clone https://github.com/JonJac-agent/arcade.git
 
 ### Saving games locally
 
-Each game's **← Arcade** link points back to `index.html`. To keep that link working, save all of the hub's files (`index.html`, `pingpong.html`, `snake.html`, and `minesweeper.html`) into one folder — don't save a single game file into an empty folder on its own.
+Each game's **← Arcade** link points back to `index.html`. To keep that link working, save all of the hub's files (`index.html`, `pingpong.html`, `snake.html`, `minesweeper.html`, and `chess.html`) into one folder — don't save a single game file into an empty folder on its own.
+
+> **Chess tip:** you're White — click a piece, then click a highlighted square to move. The computer plays Black. Pawns auto-promote to queens.
 
 > **Minesweeper tip:** the **Hard** difficulty uses a wide board, so it's best played on desktop (or a wide screen).
