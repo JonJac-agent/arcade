@@ -179,13 +179,20 @@
   }
 
   /* ---------- Board ---------- */
-  .boardwrap { position: relative; width: 100%; }
+  .boardwrap {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
 
   .board {
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    aspect-ratio: 1 / 1;
-    width: 100%;
+    grid-template-columns: repeat(8, var(--bsz, 40px));
+    grid-template-rows: repeat(8, var(--bsz, 40px));
+    width: calc(var(--bsz, 40px) * 8);
+    height: calc(var(--bsz, 40px) * 8);
+    flex: none;
     border: 1px solid var(--border);
     border-radius: 8px;
     overflow: hidden;
@@ -195,6 +202,9 @@
 
   .sq {
     position: relative;
+    width: var(--bsz, 40px);
+    height: var(--bsz, 40px);
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1238,13 +1248,27 @@
       }
     })();
 
-    function sizePieces() {
-      var sq = boardEl.clientWidth / 8;
-      boardEl.style.setProperty('--psz', Math.max(18, Math.floor(sq * 0.76)) + 'px');
+    var MAX_SQ = 84;   // board max 672px, squares stay even <= 84
+    var MIN_SQ = 20;   // squares stay at least 20px even so board fits small screens
+
+    function sizeBoard() {
+      var wrap = boardEl.parentNode;
+      var avail = (wrap && wrap.clientWidth) ? wrap.clientWidth : window.innerWidth;
+      var size = Math.floor(avail / 8);
+      if (size > MAX_SQ) size = MAX_SQ;
+      if (size < MIN_SQ) size = MIN_SQ;
+      if (size % 2 !== 0) size -= 1;          // ensure every square is even on all sides
+      boardEl.style.setProperty('--bsz', size + 'px');
+      boardEl.style.setProperty('--psz', Math.max(14, Math.floor(size * 0.72)) + 'px');
     }
 
-    sizePieces();
-    window.addEventListener('resize', sizePieces);
+    function sizeBoardDebounced() {
+      if (window.__boardResizeTimer) clearTimeout(window.__boardResizeTimer);
+      window.__boardResizeTimer = setTimeout(sizeBoard, 120);
+    }
+
+    sizeBoard();                              // size before first render
+    window.addEventListener('resize', sizeBoardDebounced);
 
     document.getElementById('newGameBtn').addEventListener('click', function () {
       this.blur();
