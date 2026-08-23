@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ping Pong — Arcade</title>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --text: #e6edf3;
+    --panel: #161b26;
+    --border: #2a3140;
+    --accent: #22d3ee;
+    --accent-soft: rgba(34, 211, 238, 0.18);
+    --danger: #f472b6;
+    --muted: #8b96a8;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 40px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    width: 100%;
+    max-width: 860px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .back {
+    color: var(--text);
+    text-decoration: none;
+    font-size: 15px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 8px;
+    white-space: nowrap;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+  }
+
+  .back:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 12px var(--accent-soft);
+  }
+
+  .title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--accent);
+    flex: 1 1 auto;
+  }
+
+  .hint {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* ---------- Game card ---------- */
+  .game-card {
+    width: 100%;
+    max-width: 860px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  }
+
+  .scoreboard {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  .score {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+  }
+
+  .score .label {
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+
+  .score .value {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .score.player .value {
+    color: var(--accent);
+  }
+
+  .score.computer .value {
+    color: #e6edf3;
+  }
+
+  .vs {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ---------- Canvas + overlay ---------- */
+  .stage {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #070a10;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background: rgba(11, 14, 20, 0.82);
+    backdrop-filter: blur(3px);
+    text-align: center;
+    padding: 20px;
+  }
+
+  .overlay.hidden {
+    display: none;
+  }
+
+  .overlay .result {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .overlay .result.win {
+    color: var(--accent);
+    text-shadow: 0 0 18px var(--accent-soft);
+  }
+
+  .overlay .result.lose {
+    color: var(--danger);
+    text-shadow: 0 0 18px rgba(244, 114, 182, 0.25);
+  }
+
+  .overlay .final {
+    font-size: 15px;
+    color: var(--muted);
+  }
+
+  .btn {
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent);
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 22px;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+
+  .btn:hover {
+    background: var(--accent-soft);
+    box-shadow: 0 0 16px var(--accent-soft);
+  }
+
+  .btn:active {
+    background: rgba(34, 211, 238, 0.28);
+  }
+
+  .controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .controls-row .tip {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .controls-row .tip strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  @media (max-width: 560px) {
+    .topbar {
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .hint {
+      order: 3;
+      width: 100%;
+    }
+    .score .value {
+      font-size: 24px;
+    }
+    .overlay .result {
+      font-size: 26px;
+    }
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back" href="index.html">← Arcade</a>
+    <h1 class="title">Ping Pong</h1>
+    <span class="hint">Mouse or ← → arrow keys to move</span>
+  </header>
+
+  <main class="game-card">
+    <div class="scoreboard">
+      <div class="score player">
+        <span class="label">Player</span>
+        <span class="value" id="playerScore">0</span>
+      </div>
+      <span class="vs">vs</span>
+      <div class="score computer">
+        <span class="label">Computer</span>
+        <span class="value" id="computerScore">0</span>
+      </div>
+    </div>
+
+    <div class="stage">
+      <canvas id="game" width="800" height="500"></canvas>
+      <div class="overlay hidden" id="overlay">
+        <div class="result" id="overlayResult">Player wins!</div>
+        <div class="final" id="overlayFinal">11 – 5</div>
+        <button class="btn" id="overlayRestart" type="button">Restart</button>
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <span class="tip"><strong>Goal:</strong> first to 11 points. Edge hits angle the ball outward — aim your shots!</span>
+      <button class="btn" id="restartBtn" type="button">Restart</button>
+    </div>
+  </main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- DOM ----------
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const playerScoreEl = document.getElementById("playerScore");
+  const computerScoreEl = document.getElementById("computerScore");
+  const overlay = document.getElementById("overlay");
+  const overlayResult = document.getElementById("overlayResult");
+  const overlayFinal = document.getElementById("overlayFinal");
+  const overlayRestart = document.getElementById("overlayRestart");
+  const restartBtn = document.getElementById("restartBtn");
+
+  // ---------- Constants ----------
+  const W = canvas.width;            // 800
+  const H = canvas.height;           // 500
+  const WIN_SCORE = 11;
+
+  const PADDLE_W = 110;
+  const PADDLE_H = 14;
+  const PADDLE_MARGIN = 22;          // distance from top/bottom edge
+  const PLAYER_Y = H - PADDLE_MARGIN - PADDLE_H;
+  const COMPUTER_Y = PADDLE_MARGIN;
+
+  const BALL_R = 8;
+  const BALL_SPEED = 340;            // px/s starting speed
+  const BALL_SPEED_MAX = 640;
+  const BALL_SPEED_STEP = 1.07;      // +7% per paddle hit
+
+  const PLAYER_KEY_SPEED = 560;      // px/s for arrow keys
+  const AI_SPEED = 310;              // max computer speed (beatable)
+  const AI_ERROR_MIN = 20;           // aim imperfection at low ball speed (px)
+  const AI_ERROR_PER_SPEED = 0.09;   // extra aim error as the ball speeds up
+
+  // ---------- State ----------
+  let playerX = (W - PADDLE_W) / 2;
+  let computerX = (W - PADDLE_W) / 2;
+  let playerScore = 0;
+  let computerScore = 0;
+
+  let ball = { x: 0, y: 0, vx: 0, vy: 0, speed: BALL_SPEED };
+  let state = "serve";               // "serve" | "playing" | "over"
+  let serveTimer = 0;                // seconds until serve launches
+  let serveDir = 1;                  // 1 = toward player (down), -1 = toward computer (up)
+  let aiErrorUnit = 0;               // current aim imperfection in [-1, 1]
+  let aiRerollTimer = 0;
+
+  const keys = { left: false, right: false };
+
+  // ---------- Helpers ----------
+  function clamp(v, min, max) {
+    return v < min ? min : v > max ? max : v;
+  }
+
+  function randomSign() {
+    return Math.random() < 0.5 ? -1 : 1;
+  }
+
+  function rollAIError() {
+    aiErrorUnit = (Math.random() * 2 - 1);
+  }
+
+  // ---------- Reset / serve ----------
+  function resetBall() {
+    ball.x = W / 2;
+    ball.y = H / 2;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.speed = BALL_SPEED;
+    state = "serve";
+    serveTimer = 0.8;
+    rollAIError();
+  }
+
+  function launchBall() {
+    // Random angle within a ~55° cone around the serve direction.
+    const angle = (Math.PI / 180) * (Math.random() * 55 - 27.5);
+    const vx = Math.sin(angle) * ball.speed;
+    const vy = Math.cos(angle) * ball.speed * serveDir;
+    ball.vx = vx;
+    ball.vy = vy;
+    state = "playing";
+  }
+
+  function resetGame() {
+    playerScore = 0;
+    computerScore = 0;
+    playerX = (W - PADDLE_W) / 2;
+    computerX = (W - PADDLE_W) / 2;
+    updateScoreDOM();
+    overlay.classList.add("hidden");
+    serveDir = randomSign();
+    resetBall();
+  }
+
+  function updateScoreDOM() {
+    playerScoreEl.textContent = playerScore;
+    computerScoreEl.textContent = computerScore;
+  }
+
+  function endGame(playerWon) {
+    state = "over";
+    overlayResult.textContent = playerWon ? "Player wins!" : "Computer wins!";
+    overlayResult.classList.toggle("win", playerWon);
+    overlayResult.classList.toggle("lose", !playerWon);
+    overlayFinal.textContent = playerScore + " – " + computerScore;
+    overlay.classList.remove("hidden");
+  }
+
+  // ---------- Scoring ----------
+  function scorePoint(playerScored) {
+    if (playerScored) {
+      playerScore += 1;
+    } else {
+      computerScore += 1;
+    }
+    updateScoreDOM();
+
+    if (playerScore >= WIN_SCORE || computerScore >= WIN_SCORE) {
+      endGame(playerScore >= WIN_SCORE);
+      return;
+    }
+
+    // Winner serves next; serve travels toward the opponent.
+    serveDir = playerScored ? -1 : 1;
+    resetBall();
+  }
+
+  // ---------- Physics ----------
+  function bounceOffPaddle(paddleX, paddleY, paddleH, hitFromBelow) {
+    // Where on the paddle did the ball hit? -1 = left edge, +1 = right edge.
+    const relative = clamp((ball.x - (paddleX + PADDLE_W / 2)) / (PADDLE_W / 2), -1, 1);
+
+    // Angle: up to ~62° outward on edge hits; straight on center hits.
+    // A minimum angle keeps the ball from pinballing perfectly vertically.
+    const maxAngle = (62 * Math.PI) / 180;
+    const minAngle = (8 * Math.PI) / 180;
+    let angle = relative * maxAngle;
+    if (Math.abs(angle) < minAngle) {
+      let sign;
+      if (Math.abs(relative) > 0.001) {
+        sign = relative > 0 ? 1 : -1;
+      } else if (ball.vx !== 0) {
+        sign = ball.vx > 0 ? 1 : -1;
+      } else {
+        sign = randomSign();
+      }
+      angle = sign * minAngle;
+    }
+
+    ball.speed = Math.min(ball.speed * BALL_SPEED_STEP, BALL_SPEED_MAX);
+    ball.vx = Math.sin(angle) * ball.speed;
+    ball.vy = Math.cos(angle) * ball.speed;
+
+    if (hitFromBelow) {
+      ball.vy = -Math.abs(ball.vy); // move upward
+      ball.y = paddleY - BALL_R;
+    } else {
+      ball.vy = Math.abs(ball.vy);  // move downward
+      ball.y = paddleY + paddleH + BALL_R;
+    }
+  }
+
+  function update(dt) {
+    // Computer AI: track the ball with imperfect aim, re-rolled periodically.
+    aiRerollTimer -= dt;
+    if (aiRerollTimer <= 0) {
+      rollAIError();
+      aiRerollTimer = 0.45 + Math.random() * 0.5;
+    }
+
+    if (state === "playing") {
+      const aiSpeed = AI_SPEED + ball.speed * 0.15;
+      const error = aiErrorUnit * (AI_ERROR_MIN + ball.speed * AI_ERROR_PER_SPEED);
+      const target = ball.x + error - PADDLE_W / 2;
+      const diff = target - computerX;
+      const maxMove = aiSpeed * dt;
+      computerX += clamp(diff, -maxMove, maxMove);
+    } else if (state === "serve") {
+      // Drift the computer toward center between points.
+      const center = W / 2 - PADDLE_W / 2;
+      const diff = center - computerX;
+      const maxMove = AI_SPEED * dt * 0.6;
+      computerX += clamp(diff, -maxMove, maxMove);
+    }
+    computerX = clamp(computerX, 0, W - PADDLE_W);
+
+    // Player: arrow keys.
+    if (keys.left) {
+      playerX -= PLAYER_KEY_SPEED * dt;
+    }
+    if (keys.right) {
+      playerX += PLAYER_KEY_SPEED * dt;
+    }
+    playerX = clamp(playerX, 0, W - PADDLE_W);
+
+    // Serve countdown.
+    if (state === "serve") {
+      serveTimer -= dt;
+      if (serveTimer <= 0) {
+        launchBall();
+      }
+    }
+
+    if (state !== "playing") {
+      return;
+    }
+
+    // Move ball (track previous Y for swept collision checks).
+    const prevY = ball.y;
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+
+    // Wall bounces.
+    if (ball.x - BALL_R < 0) {
+      ball.x = BALL_R;
+      ball.vx = Math.abs(ball.vx);
+    } else if (ball.x + BALL_R > W) {
+      ball.x = W - BALL_R;
+      ball.vx = -Math.abs(ball.vx);
+    }
+
+    // Computer (top) paddle: ball moving up crosses the paddle's bottom face.
+    if (ball.vy < 0) {
+      const face = COMPUTER_Y + PADDLE_H;
+      const crossed = prevY - BALL_R >= face && ball.y - BALL_R <= face;
+      const overlap = ball.x + BALL_R >= computerX && ball.x - BALL_R <= computerX + PADDLE_W;
+      if (crossed && overlap) {
+        bounceOffPaddle(computerX, COMPUTER_Y, PADDLE_H, false); // bounces downward
+      }
+    }
+    // Player (bottom) paddle: ball moving down crosses the paddle's top face.
+    else if (ball.vy > 0) {
+      const face = PLAYER_Y;
+      const crossed = prevY + BALL_R <= face && ball.y + BALL_R >= face;
+      const overlap = ball.x + BALL_R >= playerX && ball.x - BALL_R <= playerX + PADDLE_W;
+      if (crossed && overlap) {
+        bounceOffPaddle(playerX, PLAYER_Y, PADDLE_H, true); // bounces upward
+      }
+    }
+
+    // Scoring: ball fully passed the opponent's paddle.
+    if (ball.y - BALL_R > H) {
+      // Passed the bottom edge -> computer scores.
+      scorePoint(false);
+    } else if (ball.y + BALL_R < 0) {
+      // Passed the top edge -> player scores.
+      scorePoint(true);
+    }
+  }
+
+  // ---------- Rendering ----------
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Field background.
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "#070a10");
+    grad.addColorStop(1, "#0d1117");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Center line / "net".
+    ctx.strokeStyle = "rgba(42, 49, 64, 0.9)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 10]);
+    ctx.beginPath();
+    ctx.moveTo(0, H / 2);
+    ctx.lineTo(W, H / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Center circle hint.
+    ctx.strokeStyle = "rgba(42, 49, 64, 0.6)";
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, 46, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Computer paddle.
+    drawPaddle(computerX, COMPUTER_Y, "#e6edf3");
+
+    // Player paddle.
+    drawPaddle(playerX, PLAYER_Y, "#22d3ee");
+
+    // Ball.
+    ctx.save();
+    ctx.shadowColor = "#22d3ee";
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = "#22d3ee";
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Serve hint.
+    if (state === "serve") {
+      ctx.fillStyle = "rgba(230, 237, 243, 0.85)";
+      ctx.font = "600 16px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Get ready…", W / 2, H / 2 - 70);
+    }
+  }
+
+  function drawPaddle(x, y, color) {
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = color;
+    roundRect(x, y, PADDLE_W, PADDLE_H, 6);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  // ---------- Main loop ----------
+  let lastTime = performance.now();
+
+  function frame(now) {
+    const dt = Math.min((now - lastTime) / 1000, 1 / 30); // clamp to avoid big jumps
+    lastTime = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- Input ----------
+  function canvasXFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    return (e.clientX - rect.left) * scaleX;
+  }
+
+  function onMouseMove(e) {
+    if (state === "playing" || state === "serve") {
+      playerX = clamp(canvasXFromEvent(e) - PADDLE_W / 2, 0, W - PADDLE_W);
+    }
+  }
+
+  function onTouchMove(e) {
+    e.preventDefault();
+    const t = e.touches[0];
+    if (t && (state === "playing" || state === "serve")) {
+      playerX = clamp(canvasXFromEvent(t) - PADDLE_W / 2, 0, W - PADDLE_W);
+    }
+  }
+
+  function onKeyDown(e) {
+    if (e.key === "ArrowLeft" || e.key === "Left") {
+      keys.left = true;
+      e.preventDefault();
+    } else if (e.key === "ArrowRight" || e.key === "Right") {
+      keys.right = true;
+      e.preventDefault();
+    }
+  }
+
+  function onKeyUp(e) {
+    if (e.key === "ArrowLeft" || e.key === "Left") {
+      keys.left = false;
+      e.preventDefault();
+    } else if (e.key === "ArrowRight" || e.key === "Right") {
+      keys.right = false;
+      e.preventDefault();
+    }
+  }
+
+  canvas.addEventListener("mousemove", onMouseMove);
+  canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+
+  overlayRestart.addEventListener("click", resetGame);
+  restartBtn.addEventListener("click", resetGame);
+
+  // ---------- Start ----------
+  serveDir = randomSign();
+  resetBall();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
