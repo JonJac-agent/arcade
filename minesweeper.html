@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minesweeper — Arcade</title>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --text: #e6edf3;
+    --muted: #9aa4b2;
+    --panel: #161b26;
+    --border: #2a3140;
+    --accent: #f59e0b;
+    --accent-glow: rgba(245, 158, 11, 0.35);
+    --cell-bg: #1b2330;
+    --cell-border: #26303f;
+    --cell-revealed: #0f141d;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 16px 48px;
+  }
+
+  .topbar {
+    width: 100%;
+    max-width: 960px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .back {
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    transition: box-shadow .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .back:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .title {
+    font-size: 22px;
+    margin: 0;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: .3px;
+  }
+
+  .hint {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 100%;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .difficulty {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .difficulty button {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: box-shadow .15s ease, border-color .15s ease, background .15s ease, color .15s ease;
+  }
+  .difficulty button:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+  .difficulty button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #1a1205;
+    font-weight: 700;
+  }
+
+  .hud {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .counter {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 58px;
+    text-align: center;
+    line-height: 1;
+  }
+
+  .smiley {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 46px;
+    height: 40px;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: box-shadow .15s ease, border-color .15s ease;
+  }
+  .smiley:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .board-wrap {
+    overflow-x: auto;
+    max-width: 100%;
+    border-radius: 8px;
+  }
+
+  .board {
+    display: grid;
+    gap: 2px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2px;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+
+  .cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    background: var(--cell-bg);
+    border: 1px solid var(--cell-border);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text);
+    cursor: pointer;
+    transition: background .1s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .cell:not(.revealed):not(.flagged):hover {
+    background: #253143;
+    border-color: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+  .cell.revealed {
+    background: var(--cell-revealed);
+    border-color: #1f2633;
+    cursor: default;
+  }
+  .cell.flagged {
+    cursor: default;
+  }
+  .cell.mine {
+    background: #3a1d1d;
+    border-color: #7f1d1d;
+  }
+  .cell.boom {
+    background: #ef4444;
+    border-color: #ef4444;
+  }
+  .cell.wrong {
+    background: #3a1d1d;
+    border-color: #7f1d1d;
+  }
+
+  .cell[data-n="1"] { color: #60a5fa; }
+  .cell[data-n="2"] { color: #4ade80; }
+  .cell[data-n="3"] { color: #f87171; }
+  .cell[data-n="4"] { color: #c084fc; }
+  .cell[data-n="5"] { color: #fbbf24; }
+  .cell[data-n="6"] { color: #22d3ee; }
+  .cell[data-n="7"] { color: #f472b6; }
+  .cell[data-n="8"] { color: #94a3b8; }
+
+  .status {
+    min-height: 24px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .status.win { color: #4ade80; }
+  .status.lose { color: #f87171; }
+
+  @media (max-width: 560px) {
+    .title { font-size: 18px; }
+    .hint { margin-left: 0; width: 100%; }
+    .counter { font-size: 16px; min-width: 52px; }
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back" href="index.html">← Arcade</a>
+    <h1 class="title">Minesweeper</h1>
+    <div class="hint">Left-click to reveal · Right-click to flag</div>
+  </header>
+
+  <main class="panel">
+    <div class="controls">
+      <div class="difficulty" role="group" aria-label="Difficulty">
+        <button type="button" data-diff="easy" class="active">Easy</button>
+        <button type="button" data-diff="medium">Medium</button>
+        <button type="button" data-diff="hard">Hard</button>
+      </div>
+      <div class="hud">
+        <div class="counter" title="Mines remaining">💣 <span id="mineCounter">000</span></div>
+        <button type="button" id="smiley" class="smiley" aria-label="Restart">🙂</button>
+        <div class="counter" title="Time">⏱ <span id="timer">000</span></div>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div id="board" class="board"></div>
+    </div>
+
+    <div id="status" class="status" aria-live="polite"></div>
+  </main>
+
+<script>
+(function () {
+  'use strict';
+
+  var DIFFICULTIES = {
+    easy:   { rows: 9,  cols: 9,  mines: 10, cell: 38 },
+    medium: { rows: 16, cols: 16, mines: 40, cell: 32 },
+    hard:   { rows: 16, cols: 30, mines: 99, cell: 24 }
+  };
+
+  var boardEl = document.getElementById('board');
+  var mineCounterEl = document.getElementById('mineCounter');
+  var timerEl = document.getElementById('timer');
+  var smileyEl = document.getElementById('smiley');
+  var statusEl = document.getElementById('status');
+
+  var rows = 0, cols = 0, mines = 0, cellSize = 0;
+  var board = [];   // board[r][c] = { mine, revealed, flagged, adjacent, showMine, wrong, boom }
+  var cells = [];   // DOM elements
+  var state = 'ready'; // ready | playing | won | lost
+  var flags = 0;
+  var revealed = 0;
+  var safeCells = 0;
+  var seconds = 0;
+  var timerInterval = null;
+  var current = 'easy';
+
+  function forEachNeighbor(r, c, fn) {
+    for (var dr = -1; dr <= 1; dr++) {
+      for (var dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        var nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) fn(nr, nc);
+      }
+    }
+  }
+
+  function buildBoard() {
+    board = [];
+    cells = [];
+    boardEl.innerHTML = '';
+    boardEl.style.gridTemplateColumns = 'repeat(' + cols + ', ' + cellSize + 'px)';
+    boardEl.style.gridAutoRows = cellSize + 'px';
+
+    for (var r = 0; r < rows; r++) {
+      board.push([]);
+      cells.push([]);
+      for (var c = 0; c < cols; c++) {
+        board[r].push({ mine: false, revealed: false, flagged: false, adjacent: 0, showMine: false, wrong: false, boom: false });
+        var el = document.createElement('button');
+        el.type = 'button';
+        el.className = 'cell';
+        el.setAttribute('aria-label', 'cell');
+        (function (rr, cc) {
+          el.addEventListener('click', function () { reveal(rr, cc); });
+          el.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+            toggleFlag(rr, cc);
+          });
+        })(r, c);
+        boardEl.appendChild(el);
+        cells[r].push(el);
+      }
+    }
+  }
+
+  function placeMines(safeR, safeC) {
+    var candidates = [];
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        if (Math.abs(r - safeR) <= 1 && Math.abs(c - safeC) <= 1) continue;
+        candidates.push([r, c]);
+      }
+    }
+    // Fisher-Yates shuffle
+    for (var i = candidates.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = candidates[i];
+      candidates[i] = candidates[j];
+      candidates[j] = tmp;
+    }
+    for (var k = 0; k < mines; k++) {
+      var pos = candidates[k];
+      board[pos[0]][pos[1]].mine = true;
+    }
+    // Compute adjacency counts
+    for (var rr = 0; rr < rows; rr++) {
+      for (var cc = 0; cc < cols; cc++) {
+        var count = 0;
+        forEachNeighbor(rr, cc, function (nr, nc) {
+          if (board[nr][nc].mine) count++;
+        });
+        board[rr][cc].adjacent = count;
+      }
+    }
+  }
+
+  function renderCell(r, c) {
+    var cell = board[r][c];
+    var el = cells[r][c];
+    el.className = 'cell';
+    el.textContent = '';
+    el.removeAttribute('data-n');
+
+    if (cell.boom) {
+      el.classList.add('revealed', 'mine', 'boom');
+      el.textContent = '\u{1F4A3}';
+      return;
+    }
+    if (cell.wrong) {
+      el.classList.add('wrong');
+      el.textContent = '\u274C';
+      return;
+    }
+    if (cell.showMine) {
+      el.classList.add('revealed', 'mine');
+      el.textContent = '\u{1F4A3}';
+      return;
+    }
+    if (cell.revealed) {
+      el.classList.add('revealed');
+      if (cell.mine) {
+        el.classList.add('mine');
+        el.textContent = '\u{1F4A3}';
+      } else if (cell.adjacent > 0) {
+        el.textContent = cell.adjacent;
+        el.setAttribute('data-n', cell.adjacent);
+      }
+      return;
+    }
+    if (cell.flagged) {
+      el.classList.add('flagged');
+      el.textContent = '\u{1F6A9}';
+    }
+  }
+
+  function renderAll() {
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        renderCell(r, c);
+      }
+    }
+  }
+
+  function flood(r, c) {
+    var stack = [[r, c]];
+    while (stack.length) {
+      var pair = stack.pop();
+      var cr = pair[0], cc = pair[1];
+      var cell = board[cr][cc];
+      if (cell.revealed || cell.flagged || cell.mine) continue;
+      cell.revealed = true;
+      revealed++;
+      renderCell(cr, cc);
+      if (cell.adjacent === 0) {
+        forEachNeighbor(cr, cc, function (nr, nc) {
+          var n = board[nr][nc];
+          if (!n.revealed && !n.flagged && !n.mine) stack.push([nr, nc]);
+        });
+      }
+    }
+  }
+
+  function reveal(r, c) {
+    if (state === 'won' || state === 'lost') return;
+    var cell = board[r][c];
+    if (cell.flagged) return;
+
+    if (state === 'ready') {
+      placeMines(r, c);
+      state = 'playing';
+      startTimer();
+    }
+
+    if (cell.revealed) {
+      if (cell.adjacent > 0) chord(r, c);
+      return;
+    }
+
+    if (cell.mine) {
+      lose(r, c);
+      return;
+    }
+
+    flood(r, c);
+    checkWin();
+  }
+
+  function chord(r, c) {
+    var cell = board[r][c];
+    if (!cell.revealed || cell.adjacent === 0) return;
+    var flagCount = 0;
+    var neighbors = [];
+    forEachNeighbor(r, c, function (nr, nc) {
+      var n = board[nr][nc];
+      if (n.flagged) flagCount++;
+      else if (!n.revealed) neighbors.push([nr, nc]);
+    });
+    if (flagCount !== cell.adjacent) return;
+    for (var i = 0; i < neighbors.length; i++) {
+      if (board[neighbors[i][0]][neighbors[i][1]].mine) {
+        lose(neighbors[i][0], neighbors[i][1]);
+        return;
+      }
+    }
+    for (var j = 0; j < neighbors.length; j++) {
+      flood(neighbors[j][0], neighbors[j][1]);
+    }
+    checkWin();
+  }
+
+  function toggleFlag(r, c) {
+    if (state === 'won' || state === 'lost') return;
+    var cell = board[r][c];
+    if (cell.revealed) return;
+    cell.flagged = !cell.flagged;
+    flags += cell.flagged ? 1 : -1;
+    renderCell(r, c);
+    updateMineCounter();
+  }
+
+  function lose(r, c) {
+    state = 'lost';
+    stopTimer();
+    board[r][c].boom = true;
+    for (var rr = 0; rr < rows; rr++) {
+      for (var cc = 0; cc < cols; cc++) {
+        var cell = board[rr][cc];
+        if (cell.mine && !cell.flagged && !cell.revealed) cell.showMine = true;
+        if (!cell.mine && cell.flagged) cell.wrong = true;
+      }
+    }
+    renderAll();
+    setSmiley('\u{1F635}');
+    setStatus('\u{1F4A5} You hit a mine! Game over.', 'lose');
+  }
+
+  function checkWin() {
+    if (revealed !== safeCells) return;
+    state = 'won';
+    stopTimer();
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        if (board[r][c].mine && !board[r][c].flagged) {
+          board[r][c].flagged = true;
+        }
+      }
+    }
+    flags = mines;
+    updateMineCounter();
+    renderAll();
+    setSmiley('\u{1F60E}');
+    setStatus('\u{1F389} You win! All mines cleared.', 'win');
+  }
+
+  function startTimer() {
+    if (timerInterval) return;
+    seconds = 0;
+    updateTimer();
+    timerInterval = setInterval(function () {
+      seconds++;
+      if (seconds > 999) seconds = 999;
+      updateTimer();
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  function formatCounter(n) {
+    if (n < 0) return '-' + String(Math.abs(n)).padStart(2, '0');
+    return String(n).padStart(3, '0');
+  }
+
+  function updateMineCounter() {
+    mineCounterEl.textContent = formatCounter(mines - flags);
+  }
+
+  function updateTimer() {
+    timerEl.textContent = String(seconds).padStart(3, '0');
+  }
+
+  function setSmiley(emoji) {
+    smileyEl.textContent = emoji;
+  }
+
+  function setStatus(msg, cls) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status' + (cls ? ' ' + cls : '');
+  }
+
+  function setActiveDifficulty() {
+    var buttons = document.querySelectorAll('.difficulty button');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].classList.toggle('active', buttons[i].getAttribute('data-diff') === current);
+    }
+  }
+
+  function resetGame() {
+    var d = DIFFICULTIES[current];
+    rows = d.rows;
+    cols = d.cols;
+    mines = d.mines;
+    cellSize = d.cell;
+    safeCells = rows * cols - mines;
+    state = 'ready';
+    flags = 0;
+    revealed = 0;
+    seconds = 0;
+    stopTimer();
+    updateTimer();
+    updateMineCounter();
+    setSmiley('\u{1F642}');
+    setStatus('', '');
+    buildBoard();
+  }
+
+  var diffButtons = document.querySelectorAll('.difficulty button');
+  for (var b = 0; b < diffButtons.length; b++) {
+    diffButtons[b].addEventListener('click', function () {
+      current = this.getAttribute('data-diff');
+      setActiveDifficulty();
+      resetGame();
+    });
+  }
+
+  smileyEl.addEventListener('click', resetGame);
+  boardEl.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  resetGame();
+})();
+</script>
+</body>
+</html>
