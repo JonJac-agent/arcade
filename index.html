@@ -104,6 +104,28 @@
       flex-grow: 1;
     }
 
+    .card .controls {
+      flex-grow: 0;
+      font-size: 0.85rem;
+      color: #aebacb;
+      letter-spacing: 0.3px;
+    }
+
+    .notice {
+      margin: 0 0 24px;
+      padding: 14px 18px;
+      border: 1px solid #f59e0b;
+      border-radius: var(--radius-btn);
+      background: rgba(245, 158, 11, 0.08);
+      color: #f5c66b;
+      font-size: 0.95rem;
+    }
+
+    .notice a {
+      color: #f5c66b;
+      font-weight: 600;
+    }
+
     .actions {
       display: flex;
       gap: 12px;
@@ -144,6 +166,11 @@
       box-shadow: 0 0 16px 0 var(--card-accent);
     }
 
+    .btn-download.is-disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
     footer {
       margin-top: 40px;
       text-align: center;
@@ -159,14 +186,19 @@
       <p class="tagline">Three classic games, one neon hub — play instantly or download to keep forever.</p>
     </header>
 
+    <div id="file-note" class="notice" hidden>
+      These games are already saved in this folder — open any game file directly to play. Want a full copy? <a href="https://github.com/JonJac-agent/arcade">Get it from GitHub</a>.
+    </div>
+
     <section class="grid">
       <article class="card" style="--card-accent: #22d3ee;">
         <div class="icon">🏓</div>
         <h2>Ping Pong</h2>
         <p>Rally against the computer and keep the ball in play.</p>
+        <p class="controls">Mouse / ← →</p>
         <div class="actions">
           <a class="btn btn-play" href="pingpong.html">Play</a>
-          <a class="btn btn-download" href="pingpong.html" download>Download</a>
+          <a class="btn btn-download" href="pingpong.html" download="pingpong.html">Download</a>
         </div>
       </article>
 
@@ -174,9 +206,10 @@
         <div class="icon">🐍</div>
         <h2>Snake</h2>
         <p>Eat, grow, and dodge the walls as long as you can.</p>
+        <p class="controls">Arrows / WASD</p>
         <div class="actions">
           <a class="btn btn-play" href="snake.html">Play</a>
-          <a class="btn btn-download" href="snake.html" download>Download</a>
+          <a class="btn btn-download" href="snake.html" download="snake.html">Download</a>
         </div>
       </article>
 
@@ -184,9 +217,10 @@
         <div class="icon">💣</div>
         <h2>Minesweeper</h2>
         <p>Clear the board without hitting a single mine.</p>
+        <p class="controls">Click / right-click flag</p>
         <div class="actions">
           <a class="btn btn-play" href="minesweeper.html">Play</a>
-          <a class="btn btn-download" href="minesweeper.html" download>Download</a>
+          <a class="btn btn-download" href="minesweeper.html" download="minesweeper.html">Download</a>
         </div>
       </article>
     </section>
@@ -195,5 +229,65 @@
       <p>Download any game and open the file to play offline.</p>
     </footer>
   </main>
+
+  <script>
+    (function () {
+      var isFile = location.protocol === 'file:';
+      var notice = document.getElementById('file-note');
+      var downloadLinks = document.querySelectorAll('.btn-download');
+
+      if (isFile) {
+        if (notice) {
+          notice.hidden = false;
+        }
+        downloadLinks.forEach(function (link) {
+          link.classList.add('is-disabled');
+          link.setAttribute('aria-disabled', 'true');
+          link.addEventListener('click', function (event) {
+            event.preventDefault();
+            if (notice) {
+              notice.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          });
+        });
+        return;
+      }
+
+      downloadLinks.forEach(function (link) {
+        link.addEventListener('click', function (event) {
+          event.preventDefault();
+          var filename = link.getAttribute('download');
+          fetch(link.getAttribute('href'))
+            .then(function (response) {
+              if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+              }
+              return response.text();
+            })
+            .then(function (text) {
+              var blob = new Blob([text], { type: 'text/html' });
+              var objectUrl = URL.createObjectURL(blob);
+              var anchor = document.createElement('a');
+              anchor.href = objectUrl;
+              anchor.download = filename;
+              document.body.appendChild(anchor);
+              anchor.click();
+              anchor.remove();
+              setTimeout(function () {
+                URL.revokeObjectURL(objectUrl);
+              }, 1000);
+            })
+            .catch(function () {
+              var fallback = document.createElement('a');
+              fallback.href = link.getAttribute('href');
+              fallback.download = link.getAttribute('download');
+              document.body.appendChild(fallback);
+              fallback.click();
+              fallback.remove();
+            });
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
