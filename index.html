@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎮 Arcade</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --text: #e6edf3;
+      --panel: #161b26;
+      --border: #2a3140;
+      --accent: #8b5cf6;
+      --radius-card: 12px;
+      --radius-btn: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      line-height: 1.5;
+    }
+
+    .hub {
+      width: 100%;
+      max-width: 1060px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #8b5cf6, #22d3ee, #4ade80);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+    }
+
+    header .tagline {
+      margin-top: 8px;
+      font-size: 1.1rem;
+      color: #9aa7b8;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      --card-accent: var(--accent);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--card-accent);
+      box-shadow: 0 0 22px 0 var(--card-accent), 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .icon {
+      font-size: 3rem;
+      line-height: 1;
+      text-shadow: 0 0 18px var(--card-accent);
+    }
+
+    .card h2 {
+      font-size: 1.4rem;
+      font-weight: 650;
+      color: var(--card-accent);
+    }
+
+    .card p {
+      font-size: 0.95rem;
+      color: #9aa7b8;
+      flex-grow: 1;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .btn {
+      flex: 1;
+      display: inline-block;
+      text-align: center;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 10px 14px;
+      border-radius: var(--radius-btn);
+      border: 1px solid transparent;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .btn-play {
+      background: var(--card-accent);
+      color: #0b0e14;
+    }
+
+    .btn-play:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 16px 0 var(--card-accent);
+    }
+
+    .btn-download {
+      background: transparent;
+      color: var(--card-accent);
+      border-color: var(--card-accent);
+    }
+
+    .btn-download:hover {
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: 0 0 16px 0 var(--card-accent);
+    }
+
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #7a8699;
+    }
+  </style>
+</head>
+<body>
+  <main class="hub">
+    <header>
+      <h1>🎮 Arcade</h1>
+      <p class="tagline">Three classic games, one neon hub — play instantly or download to keep forever.</p>
+    </header>
+
+    <section class="grid">
+      <article class="card" style="--card-accent: #22d3ee;">
+        <div class="icon">🏓</div>
+        <h2>Ping Pong</h2>
+        <p>Rally against the computer and keep the ball in play.</p>
+        <div class="actions">
+          <a class="btn btn-play" href="pingpong.html">Play</a>
+          <a class="btn btn-download" href="pingpong.html" download>Download</a>
+        </div>
+      </article>
+
+      <article class="card" style="--card-accent: #4ade80;">
+        <div class="icon">🐍</div>
+        <h2>Snake</h2>
+        <p>Eat, grow, and dodge the walls as long as you can.</p>
+        <div class="actions">
+          <a class="btn btn-play" href="snake.html">Play</a>
+          <a class="btn btn-download" href="snake.html" download>Download</a>
+        </div>
+      </article>
+
+      <article class="card" style="--card-accent: #f59e0b;">
+        <div class="icon">💣</div>
+        <h2>Minesweeper</h2>
+        <p>Clear the board without hitting a single mine.</p>
+        <div class="actions">
+          <a class="btn btn-play" href="minesweeper.html">Play</a>
+          <a class="btn btn-download" href="minesweeper.html" download>Download</a>
+        </div>
+      </article>
+    </section>
+
+    <footer>
+      <p>Download any game and open the file to play offline.</p>
+    </footer>
+  </main>
+</body>
+</html>
