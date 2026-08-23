@@ -121,6 +121,19 @@
     width: 100%;
     height: 100%;
     border-radius: 8px;
+    touch-action: none;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .overlay {
@@ -189,6 +202,7 @@
     }
     .hint {
       margin-left: auto;
+      white-space: normal;
     }
   }
 </style>
@@ -197,7 +211,7 @@
   <header class="topbar">
     <a class="back" href="index.html">&larr; Arcade</a>
     <h1 class="title">Snake</h1>
-    <p class="hint">Arrows / WASD to move &middot; Space to pause &middot; R to restart</p>
+    <p class="hint">Arrows / WASD / Swipe to move &middot; Space to pause &middot; R to restart</p>
   </header>
 
   <main>
@@ -212,6 +226,8 @@
           <span class="value" id="high">0</span>
         </div>
       </div>
+
+      <div class="sr-only" role="status" aria-live="polite" id="sr-status"></div>
 
       <div class="board">
         <canvas id="board" width="400" height="400" aria-label="Snake game board"></canvas>
@@ -252,6 +268,7 @@
   var overlayScore = document.getElementById('overlay-score');
   var overlayHigh = document.getElementById('overlay-high');
   var restartBtn = document.getElementById('restart');
+  var srStatus = document.getElementById('sr-status');
 
   var STORAGE_KEY = 'arcade.snake.highScore';
 
@@ -293,6 +310,7 @@
   var timerId;
 
   function newGame() {
+    clearTimeout(timerId);
     snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
     dir = DIRS.right;
     dirQueue = [];
@@ -303,6 +321,7 @@
     updateScore();
     spawnFood();
     hideOverlay();
+    srStatus.textContent = '';
     draw();
   }
 
@@ -378,10 +397,6 @@
 
     if (eating) {
       score++;
-      if (score > highScore) {
-        highScore = score;
-        store.set(STORAGE_KEY, String(highScore));
-      }
       updateScore();
       spawnFood();
       if (gameOver) {
@@ -399,7 +414,13 @@
   function endGame(won) {
     gameOver = true;
     clearTimeout(timerId);
-    showOverlay(won);
+    var isRecord = score > highScore && score > 0;
+    if (isRecord) {
+      highScore = score;
+      store.set(STORAGE_KEY, String(highScore));
+    }
+    updateScore();
+    showOverlay(won, isRecord);
   }
 
   function tryQueue(next) {
@@ -420,12 +441,16 @@
     highEl.textContent = String(highScore);
   }
 
-  function showOverlay(won) {
+  function showOverlay(won, isRecord) {
     overlayTitle.textContent = won ? 'You Win!' : 'Game Over';
     overlayScore.textContent = 'Score: ' + score;
-    var isRecord = score > 0 && score >= highScore;
     overlayHigh.textContent = 'High Score: ' + highScore + (isRecord ? ' · New best!' : '');
     overlay.classList.remove('hidden');
+
+    srStatus.textContent = (won ? 'You win!' : 'Game over.') +
+      ' Score ' + score + '.' +
+      ' High score ' + highScore + '.' +
+      (isRecord ? ' New best!' : '');
   }
 
   function hideOverlay() {
@@ -506,19 +531,23 @@
     ArrowRight: 'right', KeyD: 'right'
   };
 
+  function queueDirection(name) {
+    if (gameOver) return;
+    if (!started) start();
+    tryQueue(DIRS[name]);
+  }
+
   function onKeyDown(e) {
     var name = KEYMAP[e.code];
     if (name) {
       e.preventDefault();
-      if (gameOver) return;
-      if (tryQueue(DIRS[name]) && !started) start();
+      queueDirection(name);
       return;
     }
 
     if (e.code === 'KeyR') {
       e.preventDefault();
       newGame();
-      start();
       return;
     }
 
@@ -542,8 +571,44 @@
   restartBtn.addEventListener('click', function () {
     restartBtn.blur();
     newGame();
-    start();
   });
+
+  // Touch / swipe controls (mobile). A swipe queues a direction and starts the
+  // game exactly like a keyboard direction key.
+  var touchStart = null;
+
+  canvas.addEventListener('touchstart', function (e) {
+    if (e.touches.length !== 1) {
+      touchStart = null;
+      return;
+    }
+    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+
+  canvas.addEventListener('touchend', function (e) {
+    if (!touchStart) return;
+    var touch = e.changedTouches[0];
+    var dx = touch.clientX - touchStart.x;
+    var dy = touch.clientY - touchStart.y;
+    touchStart = null;
+
+    var threshold = 24;
+    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+
+    var name;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      name = dx > 0 ? 'right' : 'left';
+    } else {
+      name = dy > 0 ? 'down' : 'up';
+    }
+
+    e.preventDefault();
+    queueDirection(name);
+  }, { passive: false });
+
+  canvas.addEventListener('touchcancel', function () {
+    touchStart = null;
+  }, { passive: true });
 
   window.addEventListener('keydown', onKeyDown);
 
