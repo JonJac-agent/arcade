@@ -197,7 +197,7 @@
   <header class="topbar">
     <a class="back" href="index.html">&larr; Arcade</a>
     <h1 class="title">Snake</h1>
-    <p class="hint">Arrows / WASD to move &middot; Space to pause</p>
+    <p class="hint">Arrows / WASD to move &middot; Space to pause &middot; R to restart</p>
   </header>
 
   <main>
@@ -512,6 +512,13 @@
       e.preventDefault();
       if (gameOver) return;
       if (tryQueue(DIRS[name]) && !started) start();
+      return;
+    }
+
+    if (e.code === 'KeyR') {
+      e.preventDefault();
+      newGame();
+      start();
       return;
     }
 
